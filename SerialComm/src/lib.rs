@@ -1,8 +1,19 @@
-use std::sync::mpsc::Receiver;
+use std::sync::mpsc::{Receiver, TryRecvError};
+
 // Priority 0 are Startup, Shutdown and Stop commands
 // all other commands are priority 1.
 fn init(rec_1: Receiver<Vec<u8>>, rec_0: Receiver<Vec<u8>>){
-
+    loop {
+        for x in rec_0.try_iter() {
+            send_packet(x);
+        }
+        match rec_1.try_recv() {
+            Ok(n) => {
+                send_packet(n);
+            }
+            Err(_) => {}
+        }
+    }
 }
 
 // Send a vector of bytes (data) to the serial (adds CRC8 etc...)
