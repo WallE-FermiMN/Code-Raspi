@@ -140,7 +140,7 @@ fn send_packet(cmd: &Command, back_to_back: bool, starting_time: Instant) {
 
 // Takes a vector of bytes and sends to the serial port.
 fn send_raw(data: Vec<u8>) {
-    unimplemented!();
+    unimplemented!(); // This needs to be implemented
 }
 fn create_crc8(data: &Vec<u8>) -> u8 {
     let mut crc: u8 = 0;
