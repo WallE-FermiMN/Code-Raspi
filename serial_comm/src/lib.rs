@@ -26,7 +26,7 @@ pub enum Command {
 }
 
 impl Command {
-    fn into_vec_u8(&self, starting_time: Instant) -> Vec<u8> {
+    fn convert_into_vec_u8(&self, starting_time: Instant) -> Vec<u8> {
         match self {
             Command::EaseServo(c) => {
                 let mut v: Vec<u8> = Vec::with_capacity(8);
@@ -55,9 +55,7 @@ impl Command {
                 v
             }
             Command::Startup => {
-                let mut v: Vec<u8> = Vec::with_capacity(1);
-                v.push(0xCC);
-                v
+                vec![0xCC]
             }
             Command::ShutdownThreads => {
                 vec![]
@@ -71,7 +69,7 @@ impl Command {
 /// This function receives a packet stream, processing it every 50ms
 pub fn init(rec: Receiver<Command>, snd: Sender<Command>) {
     log::trace!("SerialComThread - Spawning clock thread");
-    std::thread::spawn(move || clock_sync_thread(snd.clone()));
+    std::thread::spawn(move || clock_sync_thread(snd));
     log::trace!("SerialComThread - Initializing clock");
     let starting_time = Instant::now();
     loop {
@@ -113,7 +111,7 @@ fn send_packet(cmd: &Command, back_to_back: bool, starting_time: Instant) {
         return;
     }
     let mut raw_data: Vec<u8> = Vec::new();
-    let pack = cmd.into_vec_u8(starting_time);
+    let pack = cmd.convert_into_vec_u8(starting_time);
     if !back_to_back {
         raw_data.push(0x00);
     }
@@ -139,10 +137,10 @@ fn send_packet(cmd: &Command, back_to_back: bool, starting_time: Instant) {
 }
 
 // Takes a vector of bytes and sends to the serial port.
-fn send_raw(data: Vec<u8>) {
+fn send_raw(_data: Vec<u8>) {
     unimplemented!();
 }
-fn create_crc8(data: &Vec<u8>) -> u8 {
+fn create_crc8(data: &[u8]) -> u8 {
     let mut crc: u8 = 0;
     let mut inbyte: u8;
     let mut mix: u8;
@@ -157,16 +155,16 @@ fn create_crc8(data: &Vec<u8>) -> u8 {
             inbyte >>= 1;
         }
     }
-    return crc;
+    crc
 }
 fn clock_sync_thread(snd: Sender<Command>) {
     for _ in 0..5 {
         log::trace!("ClockSyncThread - Sending startup command");
-        snd.send(Command::Startup);
+        let _ = snd.send(Command::Startup);
     }
     for _ in 0..5 {
         log::trace!("ClockSyncThread - Sending ClockSync command");
-        snd.send(Command::ClockSync);
+        let _ = snd.send(Command::ClockSync);
         std::thread::sleep(Duration::from_millis(25));
     }
     loop {
