@@ -24,7 +24,13 @@ jobs:
               toolchain: nightly
               components: clippy, rustfmt
               override: true
-      
+
+      - name: Install udev
+        run: sudo apt-get install udev
+
+      - name: Install libudev-dev
+        run: sudo apt-get install libudev-dev
+
       - name: RustFmt
         uses: mbrobbel/rustfmt-check@master
         with:
