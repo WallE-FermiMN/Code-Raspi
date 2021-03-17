@@ -1,9 +1,8 @@
 use std::ops::Add;
 use std::sync::mpsc::{Receiver, Sender, TryRecvError};
 use std::time::{Duration, Instant};
-use serialport::{TTYPort, SerialPortBuilder, DataBits, FlowControl, Parity, StopBits, Error};
+use serialport::{TTYPort, DataBits, FlowControl, Parity, StopBits};
 use std::io::Write;
-use std::panic::panic_any;
 
 /// Ease PWM Command
 pub struct EaseServoCommand {
@@ -13,7 +12,7 @@ pub struct EaseServoCommand {
 }
 
 /// Ease Speed + direction command
-pub struct EaseDCCommand {
+pub struct EaseDcCommand {
     pub time: Duration,
     pub values: (i16, i16),
 }
@@ -22,7 +21,7 @@ pub struct EaseDCCommand {
 /// The ShutdownThreads command is reserved for program shutdown propagation.
 pub enum Command {
     EaseServo(EaseServoCommand),
-    EaseDC(EaseDCCommand),
+    EaseDc(EaseDcCommand),
     ClockSync,
     Startup,
     ShutdownThreads,
@@ -41,7 +40,7 @@ impl Command {
                 v.extend_from_slice(&c.val.to_le_bytes());
                 v
             }
-            Command::EaseDC(c) => {
+            Command::EaseDc(c) => {
                 let mut v: Vec<u8> = Vec::with_capacity(9);
                 v.push(0x87);
                 v.extend_from_slice(
@@ -68,14 +67,13 @@ impl Command {
 }
 
 fn create_serial() -> TTYPort {
-    let b: SerialPortBuilder;
-    b.path("/dev/TTYS0");
-    b.baud_rate(57600);
-    b.data_bits(DataBits::Eight);
-    b.flow_control(FlowControl::None);
-    b.parity(Parity::None);
-    b.stop_bits(StopBits::One);
-    b.timeout(Duration::from_millis(500));
+    let b =
+    serialport::new("/dev/TTYS0",57600)
+    .data_bits(DataBits::Eight)
+    .flow_control(FlowControl::None)
+    .parity(Parity::None)
+    .stop_bits(StopBits::One)
+    .timeout(Duration::from_millis(500));
     log::trace!("Set serial port settings");
     log::trace!("Trying to open serial port...");
     match b.open_native() {
