@@ -1,6 +1,9 @@
 use std::ops::Add;
 use std::sync::mpsc::{Receiver, Sender, TryRecvError};
 use std::time::{Duration, Instant};
+use serialport::{TTYPort, SerialPortBuilder, DataBits, FlowControl, Parity, StopBits, Error};
+use std::io::Write;
+use std::panic::panic_any;
 
 /// Ease PWM Command
 pub struct EaseServoCommand {
@@ -64,6 +67,29 @@ impl Command {
     }
 }
 
+fn create_serial() -> TTYPort {
+    let b: SerialPortBuilder;
+    b.path("/dev/TTYS0");
+    b.baud_rate(57600);
+    b.data_bits(DataBits::Eight);
+    b.flow_control(FlowControl::None);
+    b.parity(Parity::None);
+    b.stop_bits(StopBits::One);
+    b.timeout(Duration::from_millis(500));
+    log::trace!("Set serial port settings");
+    log::trace!("Trying to open serial port...");
+    match b.open_native() {
+        Ok(m) => {
+        log::info!("Serial port opened.");
+            m
+        }
+        Err(e) => {
+            log::error!("Failed to open serial port. Error message: {}", e.description);
+            panic!("Failed to open serial port");
+        }
+    }
+}
+
 /// Initializes the packet sending service. Needs a sender (to receive packets)
 /// and a receiver (cloned) to send time sync packets.
 /// This function receives a packet stream, processing it every 50ms
@@ -72,11 +98,12 @@ pub fn init(rec: Receiver<Command>, snd: Sender<Command>) {
     std::thread::spawn(move || clock_sync_thread(snd));
     log::trace!("SerialComThread - Initializing clock");
     let starting_time = Instant::now();
+    let mut port: TTYPort = create_serial();
     loop {
         match rec.try_recv() {
             Ok(packet) => {
                 log::trace!("SerialComThread - Sending packet");
-                send_packet(&packet, false, starting_time);
+                send_packet(&packet, starting_time, &mut port);
                 if let Command::ShutdownThreads = packet {
                     log::trace!("SerialComThread - All senders disconnected, terminating...");
                     return;
@@ -91,7 +118,7 @@ pub fn init(rec: Receiver<Command>, snd: Sender<Command>) {
         }
         for x in rec.try_iter() {
             log::trace!("SerialComThread - Sending back to back packet");
-            send_packet(&x, true, starting_time);
+            send_packet(&x, starting_time, &mut port);
             if let Command::ShutdownThreads = x {
                 log::trace!("SerialComThread - All senders disconnected, terminating...");
                 return;
@@ -105,16 +132,13 @@ pub fn init(rec: Receiver<Command>, snd: Sender<Command>) {
 // Send a vector of bytes (data) to the serial (adds CRC8 etc...)
 // The first element in the vector is the command data, and
 // only the least significant 4 bits are kept.
-fn send_packet(cmd: &Command, back_to_back: bool, starting_time: Instant) {
+fn send_packet(cmd: &Command, starting_time: Instant, port: &mut TTYPort) {
     if let Command::ShutdownThreads = cmd {
         log::trace!("SerialComThread.send_packet - A program shutdown request was issued");
         return;
     }
     let mut raw_data: Vec<u8> = Vec::new();
     let pack = cmd.convert_into_vec_u8(starting_time);
-    if !back_to_back {
-        raw_data.push(0x00);
-    }
 
     for i in &pack[..] {
         match i {
@@ -126,19 +150,24 @@ fn send_packet(cmd: &Command, back_to_back: bool, starting_time: Instant) {
                 raw_data.push(0xFF);
                 raw_data.push(0xDD);
             }
+            0xCC =>{
+                raw_data.push(0xFF);
+                raw_data.push(0xBB);
+            }
             n => {
                 raw_data.push(*n);
             }
         }
     }
     raw_data.push(create_crc8(&pack));
-    raw_data.push(0x00);
-    send_raw(raw_data);
+    raw_data.push(0xCC);
+    send_raw(raw_data, port);
 }
 
 // Takes a vector of bytes and sends to the serial port.
-fn send_raw(_data: Vec<u8>) {
-    unimplemented!();
+fn send_raw(data: Vec<u8>, port: &mut TTYPort) {
+    let _ = port.write_all(&*data);
+    let _ = port.flush();
 }
 fn create_crc8(data: &[u8]) -> u8 {
     let mut crc: u8 = 0;
