@@ -1,8 +1,8 @@
+use serialport::{DataBits, FlowControl, Parity, StopBits, TTYPort};
+use std::io::Write;
 use std::ops::Add;
 use std::sync::mpsc::{Receiver, Sender, TryRecvError};
 use std::time::{Duration, Instant};
-use serialport::{TTYPort, DataBits, FlowControl, Parity, StopBits};
-use std::io::Write;
 
 /// Ease PWM Command
 pub struct EaseServoCommand {
@@ -67,13 +67,12 @@ impl Command {
 }
 
 fn create_serial() -> TTYPort {
-    let b =
-        serialport::new("/dev/TTYS0",57600)
-            .data_bits(DataBits::Eight)
-            .flow_control(FlowControl::None)
-            .parity(Parity::None)
-            .stop_bits(StopBits::One)
-            .timeout(Duration::from_millis(500));
+    let b = serialport::new("/dev/TTYS0", 57600)
+        .data_bits(DataBits::Eight)
+        .flow_control(FlowControl::None)
+        .parity(Parity::None)
+        .stop_bits(StopBits::One)
+        .timeout(Duration::from_millis(500));
     log::trace!("Set serial port settings");
     log::trace!("Trying to open serial port...");
     match b.open_native() {
@@ -82,7 +81,10 @@ fn create_serial() -> TTYPort {
             m
         }
         Err(e) => {
-            log::error!("Failed to open serial port. Error message: {}", e.description);
+            log::error!(
+                "Failed to open serial port. Error message: {}",
+                e.description
+            );
             panic!("Failed to open serial port");
         }
     }
@@ -148,7 +150,7 @@ fn send_packet(cmd: &Command, starting_time: Instant, port: &mut TTYPort) {
                 raw_data.push(0xFF);
                 raw_data.push(0xDD);
             }
-            0xCC =>{
+            0xCC => {
                 raw_data.push(0xFF);
                 raw_data.push(0xBB);
             }
