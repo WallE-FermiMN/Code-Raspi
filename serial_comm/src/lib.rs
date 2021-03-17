@@ -68,17 +68,17 @@ impl Command {
 
 fn create_serial() -> TTYPort {
     let b =
-    serialport::new("/dev/TTYS0",57600)
-    .data_bits(DataBits::Eight)
-    .flow_control(FlowControl::None)
-    .parity(Parity::None)
-    .stop_bits(StopBits::One)
-    .timeout(Duration::from_millis(500));
+        serialport::new("/dev/TTYS0",57600)
+            .data_bits(DataBits::Eight)
+            .flow_control(FlowControl::None)
+            .parity(Parity::None)
+            .stop_bits(StopBits::One)
+            .timeout(Duration::from_millis(500));
     log::trace!("Set serial port settings");
     log::trace!("Trying to open serial port...");
     match b.open_native() {
         Ok(m) => {
-        log::info!("Serial port opened.");
+            log::info!("Serial port opened.");
             m
         }
         Err(e) => {
