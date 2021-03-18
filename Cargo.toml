@@ -1,5 +1,5 @@
 [workspace]
 
 members = [
-    "SerialComm",
+    "serial_comm",
 ]
