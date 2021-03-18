@@ -57,7 +57,7 @@ impl Command {
                 v
             }
             Command::Startup => {
-                vec![0xCC]
+                vec![0xCB]
             }
             Command::ShutdownThreads => {
                 vec![]
@@ -66,8 +66,9 @@ impl Command {
     }
 }
 
+// Creates serial port
 fn create_serial() -> TTYPort {
-    let b = serialport::new("/dev/TTYS0", 57600)
+    let b = serialport::new("/dev/ttyACM0", 57600)
         .data_bits(DataBits::Eight)
         .flow_control(FlowControl::None)
         .parity(Parity::None)
@@ -139,7 +140,7 @@ fn send_packet(cmd: &Command, starting_time: Instant, port: &mut TTYPort) {
     }
     let mut raw_data: Vec<u8> = Vec::new();
     let pack = cmd.convert_into_vec_u8(starting_time);
-
+    raw_data.push(0x00);
     for i in &pack[..] {
         match i {
             0x00 => {
@@ -159,7 +160,23 @@ fn send_packet(cmd: &Command, starting_time: Instant, port: &mut TTYPort) {
             }
         }
     }
-    raw_data.push(create_crc8(&pack));
+    match create_crc8(&pack) {
+        0x00 => {
+            raw_data.push(0xFF);
+            raw_data.push(0xEE);
+        }
+        0xFF => {
+            raw_data.push(0xFF);
+            raw_data.push(0xDD);
+        }
+        0xCC => {
+            raw_data.push(0xFF);
+            raw_data.push(0xBB);
+        }
+        n => {
+            raw_data.push(n);
+        }
+    }
     raw_data.push(0xCC);
     send_raw(raw_data, port);
 }
@@ -168,6 +185,7 @@ fn send_packet(cmd: &Command, starting_time: Instant, port: &mut TTYPort) {
 fn send_raw(data: Vec<u8>, port: &mut TTYPort) {
     let _ = port.write_all(&*data);
     let _ = port.flush();
+
 }
 fn create_crc8(data: &[u8]) -> u8 {
     let mut crc: u8 = 0;
@@ -194,7 +212,6 @@ fn clock_sync_thread(snd: Sender<Command>) {
     for _ in 0..5 {
         log::trace!("ClockSyncThread - Sending ClockSync command");
         let _ = snd.send(Command::ClockSync);
-        std::thread::sleep(Duration::from_millis(25));
     }
     loop {
         log::trace!("ClockSyncThread - Sending ClockSync command");
