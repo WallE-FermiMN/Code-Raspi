@@ -185,7 +185,6 @@ fn send_packet(cmd: &Command, starting_time: Instant, port: &mut TTYPort) {
 fn send_raw(data: Vec<u8>, port: &mut TTYPort) {
     let _ = port.write_all(&*data);
     let _ = port.flush();
-
 }
 fn create_crc8(data: &[u8]) -> u8 {
     let mut crc: u8 = 0;
