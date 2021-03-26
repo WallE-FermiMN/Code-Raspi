@@ -118,7 +118,7 @@ pub fn init(rec: Receiver<Command>, snd: Sender<Command>) {
             }
         }
         for x in rec.try_iter() {
-            log::trace!("SerialComThread - Sending back to back packet");
+            log::trace!("SerialComThread - Sending packet");
             send_packet(&x, starting_time, &mut port);
             if let Command::ShutdownThreads = x {
                 log::trace!("SerialComThread - All senders disconnected, terminating...");
